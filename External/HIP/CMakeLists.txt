@@ -14,6 +14,8 @@ message(STATUS "HIP_CLANG_PATH: ${HIP_CLANG_PATH}")
 # that is enabled validates its prerequisites while configuring and fails there
 # if they are missing, instead of quietly contributing no tests. Groups that are
 # off contribute no targets at all.
+option(ENABLE_HIP_SIMPLE_TESTS
+       "Enable the HIP tests built from the in-tree External/HIP sources" ON)
 option(ENABLE_HIP_HIPIFY_TESTS
        "Enable the HIP tests hipified from the External/CUDA sources" ON)
 option(ENABLE_HIP_CATCH_TESTS
@@ -248,17 +250,22 @@ endmacro()
 # these be functions with the shared lists propagated explicitly.
 macro(create_local_hip_tests VariantSuffix)
   set(VariantOffload "hip")
-  create_simple_hip_tests(${VariantSuffix})
+  if(ENABLE_HIP_SIMPLE_TESTS)
+    create_simple_hip_tests(${VariantSuffix})
+    # Blender still belongs to the simple group; it gains its own switch next.
+    create_blender_hip_test(${VariantSuffix})
+  endif()
   if(ENABLE_HIP_HIPIFY_TESTS)
     create_hipify_hip_tests(${VariantSuffix})
   endif()
-  create_blender_hip_test(${VariantSuffix})
 endmacro()
 
 function(create_hip_test VariantSuffix)
   message(STATUS "Creating HIP test variant ${VariantSuffix}")
-  add_custom_target(hip-tests-simple-${VariantSuffix}
-    COMMENT "Build HIP test variant ${VariantSuffix}")
+  if(ENABLE_HIP_SIMPLE_TESTS)
+    add_custom_target(hip-tests-simple-${VariantSuffix}
+      COMMENT "Build HIP test variant ${VariantSuffix}")
+  endif()
   if(ENABLE_HIP_HIPIFY_TESTS)
     add_custom_target(hip-tests-hipify-${VariantSuffix}
       COMMENT "Build hipified HIP test variant ${VariantSuffix}")
@@ -269,7 +276,6 @@ function(create_hip_test VariantSuffix)
   list(APPEND LDFLAGS ${_HIP_LDFLAGS})
 
   create_local_hip_tests(${VariantSuffix})
-  add_dependencies(hip-tests-simple hip-tests-simple-${VariantSuffix})
 
   # Enable verbose output for running HIP tests.
   set(HIP_LIT_FLAGS "-v")
@@ -282,13 +288,16 @@ function(create_hip_test VariantSuffix)
          --xunit-xml-output hip-results-hipify-${VariantSuffix}.xml)
   endif()
 
-  add_custom_target(check-hip-simple-${VariantSuffix}
-    COMMAND ${HIP_TEST_SUITE_LIT} ${HIP_SIMPLE_LIT_FLAGS}
-            ${VARIANT_SIMPLE_TEST_TARGETS}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    DEPENDS hip-tests-simple-${VariantSuffix}
-    USES_TERMINAL)
-  add_dependencies(check-hip-simple check-hip-simple-${VariantSuffix})
+  if(ENABLE_HIP_SIMPLE_TESTS)
+    add_dependencies(hip-tests-simple hip-tests-simple-${VariantSuffix})
+    add_custom_target(check-hip-simple-${VariantSuffix}
+      COMMAND ${HIP_TEST_SUITE_LIT} ${HIP_SIMPLE_LIT_FLAGS}
+              ${VARIANT_SIMPLE_TEST_TARGETS}
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+      DEPENDS hip-tests-simple-${VariantSuffix}
+      USES_TERMINAL)
+    add_dependencies(check-hip-simple check-hip-simple-${VariantSuffix})
+  endif()
 
   if(ENABLE_HIP_HIPIFY_TESTS)
     add_dependencies(hip-tests-hipify hip-tests-hipify-${VariantSuffix})
@@ -325,10 +334,12 @@ macro(create_hip_tests)
     return()
   endif()
 
-  add_custom_target(hip-tests-simple
-    COMMENT "Build all simple HIP tests")
-  add_custom_target(check-hip-simple
-    COMMENT "Run all simple HIP tests")
+  if(ENABLE_HIP_SIMPLE_TESTS)
+    add_custom_target(hip-tests-simple
+      COMMENT "Build all simple HIP tests")
+    add_custom_target(check-hip-simple
+      COMMENT "Run all simple HIP tests")
+  endif()
 
   if(ENABLE_HIP_HIPIFY_TESTS)
     add_custom_target(hip-tests-hipify
@@ -470,8 +481,12 @@ macro(create_hip_tests)
 
   # Aggregate every enabled group. Groups that are off contribute no targets, so
   # they are simply absent from these dependency lists.
-  set(_hip_all_build_targets hip-tests-simple)
-  set(_hip_all_check_targets check-hip-simple)
+  set(_hip_all_build_targets)
+  set(_hip_all_check_targets)
+  if(ENABLE_HIP_SIMPLE_TESTS)
+    list(APPEND _hip_all_build_targets hip-tests-simple)
+    list(APPEND _hip_all_check_targets check-hip-simple)
+  endif()
   if(ENABLE_HIP_HIPIFY_TESTS)
     list(APPEND _hip_all_build_targets hip-tests-hipify)
     list(APPEND _hip_all_check_targets check-hip-hipify)

@@ -16,6 +16,8 @@ message(STATUS "HIP_CLANG_PATH: ${HIP_CLANG_PATH}")
 # off contribute no targets at all.
 option(ENABLE_HIP_HIPIFY_TESTS
        "Enable the HIP tests hipified from the External/CUDA sources" ON)
+option(ENABLE_HIP_CATCH_TESTS
+       "Enable the HIP tests built on the Catch2 framework" OFF)
 
 # Include Catch tests integration module
 

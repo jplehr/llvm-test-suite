@@ -25,6 +25,19 @@ option(ENABLE_HIP_BLENDER_TESTS
 option(HIP_BLENDER_ALWAYS_SHOW_LOG
        "Print the Blender test log even when the test passes" OFF)
 
+# The suites below are third-party projects fetched and built on the side, so
+# they keep their own build-<name> / test-<name> targets rather than joining the
+# hip-tests-* / check-hip-* pairs. They are named to match the switches above;
+# the older EXTERNAL_HIP_TESTS_* spellings they forward to keep working.
+option(ENABLE_HIP_KOKKOS_TESTS  "Enable the Kokkos HIP tests"  OFF)
+option(ENABLE_HIP_GINKGO_TESTS  "Enable the Ginkgo HIP tests"  OFF)
+option(ENABLE_HIP_ROCPRIM_TESTS "Enable the rocPRIM HIP tests" OFF)
+foreach(_hip_ext_suite KOKKOS GINKGO ROCPRIM)
+  if(ENABLE_HIP_${_hip_ext_suite}_TESTS)
+    set(EXTERNAL_HIP_TESTS_${_hip_ext_suite} ON)
+  endif()
+endforeach()
+
 # Include Catch tests integration module
 
 # Find Python interpreter for running llvm-lit
